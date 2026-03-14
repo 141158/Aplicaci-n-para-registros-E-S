@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS Real E/S Event Capture - Hardware to User Space</title>
+    <!-- Modern Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header neon-border">
+            <div class="glow"></div>
+            <h1>OS Real I/O Event Capture</h1>
+            <p class="subtitle">Hardware -> Interrupciones (IRQ) -> Drivers -> Espacio de Usuario</p>
+            <div id="connectionStatus" class="status-badge connecting">Verificando conexión Backend...</div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <main class="dashboard">
+            
+            <!-- Left Panel: Hardware Overview -->
+            <section class="panel glass">
+                <h2>Capa de Hardware (Periféricos Físicos)</h2>
+                <div class="hw-grid" id="hardwareGrid">
+                    <!-- Default Hardware Cards to be populated/updated via WS -->
+                    <div class="card hw-card" id="hw-keyboard">
+                        <div class="card-icon">⌨️</div>
+                        <h3>Teclado</h3>
+                        <div class="hw-details">
+                            <span class="label">IRQ Asignada:</span> <span class="val hl" id="kb-irq">Loading...</span><br>
+                            <span class="label">Driver:</span> <span class="val hl" id="kb-driver">Loading...</span>
+                        </div>
+                        <div class="activity-indicator" id="kb-act"></div>
+                    </div>
+                    
+                    <div class="card hw-card" id="hw-mouse">
+                        <div class="card-icon">🖱️</div>
+                        <h3>Mouse</h3>
+                        <div class="hw-details">
+                            <span class="label">IRQ Asignada:</span> <span class="val hl" id="ms-irq">Loading...</span><br>
+                            <span class="label">Driver:</span> <span class="val hl" id="ms-driver">Loading...</span>
+                        </div>
+                        <div class="activity-indicator" id="ms-act"></div>
+                    </div>
+
+                    <div class="card hw-card" id="hw-disk">
+                        <div class="card-icon">💽</div>
+                        <h3>Disco Duro (Tráfico I/O)</h3>
+                        <div class="hw-details">
+                            <span class="label">IRQ/DMA:</span> <span class="val hl" id="ds-irq">Loading...</span><br>
+                            <span class="label">Driver:</span> <span class="val hl" id="ds-driver">Loading...</span>
+                        </div>
+                        <div class="activity-indicator" id="ds-act"></div>
+                        <div style="margin-top: 15px; text-align: center;">
+                            <button id="btnOpenDiskCapture" class="advanced-btn">Cámara de Captura Avanzada 🚀</button>
+                        </div>
+                        <div class="dma-info-box" style="margin-top: 15px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; font-size: 0.8rem; line-height: 1.4; border-left: 3px solid #d2a8ff;">
+                            <strong>ℹ️ Concepto DMA:</strong> El Acceso Directo a Memoria permite al disco transferir de forma maestra los bloques de datos a la RAM <em>sin involucrar al procesador</em>. Aquí, el CPU solo es interrumpido por <strong>IRQ</strong> al <em>inicio</em> y al <em>final</em> de la operación completa, liberándolo drásticamente.
+                        </div>
+                    </div>
+
+                    <div class="card hw-card" id="hw-monitor">
+                        <div class="card-icon">🖥️</div>
+                        <h3>Monitor (GPU)</h3>
+                        <div class="hw-details">
+                            <span class="label">Refresco:</span> <span class="val hl">Automático</span><br>
+                            <span class="label">Señal:</span> <span class="val hl">Píxeles/DMA</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Center/Right Panel: Event Pipeline & Logs -->
+            <section class="panel glass live-events">
+                <h2>Capa de Kernel & Rutinas de Interrupción (ISR)</h2>
+                
+                <div class="pipeline">
+                    <div class="pipe-node" id="pipe-hw">Dispositivo Inicia Transferencia</div>
+                    <div class="pipe-arrow">➡️</div>
+                    <div class="pipe-node" id="pipe-irq">Señal IRQ a CPU</div>
+                    <div class="pipe-arrow">➡️</div>
+                    <div class="pipe-node" id="pipe-kernel">Kernel ISR / DPC</div>
+                    <div class="pipe-arrow">➡️</div>
+                    <div class="pipe-node" id="pipe-user">App recibe Dato</div>
+                </div>
+
+                <div class="terminal-container">
+                    <div class="terminal-header">
+                        <span>Terminal Eventos (ms)</span>
+                        <div class="terminal-filters" id="deviceFilters">
+                            <button class="filter-btn active" data-filter="all">Todos</button>
+                            <button class="filter-btn" data-filter="Keyboard">Teclado</button>
+                            <button class="filter-btn" data-filter="Mouse">Mouse</button>
+                            <button class="filter-btn" data-filter="Disk">Disco</button>
+                        </div>
+                        <button id="clearBtn">Clear</button>
+                    </div>
+                    <div class="terminal" id="eventLog">
+                        <!-- Events go here -->
+                        <div class="log-line info">[System] Esperando captura de eventos E/S... mueva su ratón, teclee o lea el disco.</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Advanced Disk Capture Modal -->
+        <div id="diskCaptureModal" class="modal-overlay hidden">
+            <div class="modal-content glass">
+                <div class="modal-header">
+                    <h2>🔬 Captura Aislada de I/O de Disco</h2>
+                    <button id="btnCloseDiskCapture" class="close-btn">&times;</button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="disk-controls">
+                        <div class="control-group">
+                            <label for="diskSelect">Seleccione el Disco Físico:</label>
+                            <select id="diskSelect">
+                                <option value="">Cargando discos físicos...</option>
+                            </select>
+                        </div>
+                        
+                        <div id="selectedDiskDetails" class="disk-meta hidden">
+                            <p><span class="label">Modelo:</span> <span id="metaModel" class="val hl"></span></p>
+                            <p><span class="label">Tipo de Medio:</span> <span id="metaType" class="val hl"></span></p>
+                            <p><span class="label">Tamaño:</span> <span id="metaSize" class="val hl"></span> GB</p>
+                        </div>
+
+                        <button id="btnTriggerIO" class="trigger-btn" disabled>Forzar 50MB I/O (Lectura/Escritura)</button>
+                        <p class="io-description">Esto escribirá y leerá un archivo temporal (50MB) forzando el bypass de caché (<code>os.fsync</code>) para detonar físicamente el hardware y su DMA en forma aislada.</p>
+                    </div>
+
+                    <div class="isolated-terminal">
+                        <div class="terminal-header" style="background: #111;">
+                            <span style="color: #ffb86c">Eventos Físicos de esta Operación Específica</span>
+                            <span id="ioStatus" class="io-status">Esperando ejecución...</span>
+                        </div>
+                        <div class="terminal" id="isolatedEventLog">
+                            <div class="log-line info">[System] Seleccione un disco y presione "Forzar 50MB I/O" para iniciar.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

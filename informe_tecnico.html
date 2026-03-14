@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Técnico - Monitor Integral de E/S</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px 20px;
+            background-color: #fafafa;
+        }
+        .container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        h1 {
+            text-align: center;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+            margin-top: 40px;
+        }
+        .author-box {
+            background-color: #f8f9fa;
+            border-left: 5px solid #3498db;
+            padding: 15px 25px;
+            margin: 20px 0 40px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .author-box p {
+            margin: 8px 0;
+            font-size: 1.1em;
+        }
+        .author-box strong {
+            color: #2c3e50;
+        }
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .tech-badge {
+            background-color: #e8f4f8;
+            color: #2980b9;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        p {
+            text-align: justify;
+            margin-bottom: 15px;
+        }
+        ul {
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        code {
+            background-color: #f1f2f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            color: #e74c3c;
+        }
+        .highlight {
+            background-color: #fcf3cf;
+            padding: 15px;
+            border-left: 4px solid #f1c40f;
+            margin: 20px 0;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Informe Técnico:<br>Monitor Integral y Simulador de Eventos de E/S del Sistema Operativo</h1>
+    
+    <div class="author-box">
+        <p><strong>Desarrollado por:</strong> Cesar Andersson Saire Hancco</p>
+        <p><strong>Código de Estudiante:</strong> 141158</p>
+    </div>
+
+    <h2>1. Resumen Ejecutivo</h2>
+    <p>El presente informe detalla la arquitectura, diseño e implementación de una aplicación cliente-servidor orientada a la visualización y análisis pedagógico de las operaciones de Entrada y Salida (E/S) dentro del Sistema Operativo Windows. La herramienta permite capturar en tiempo real las interacciones de los periféricos (teclado, ratón) e instanciar operaciones de disco (HDD/NVMe) para demostrar el tránsito de la información a través de las capas del sistema, incluyendo conceptos avanzados como Interrupciones (IRQ), Paquetes de Petición de I/O (IRP), la Capa de Abstracción de Hardware (HAL) y el Acceso Directo a Memoria (DMA).</p>
+
+    <h2>2. Arquitectura Tecnológica</h2>
+    <p>La aplicación utiliza un modelo asíncrono cliente-servidor basado totalmente en WebSockets para garantizar tiempos de respuesta en milisegundos y un bajo consumo de recursos:</p>
+    
+    <div class="tech-stack">
+        <span class="tech-badge">Python 3 (Asyncio)</span>
+        <span class="tech-badge">WebSockets</span>
+        <span class="tech-badge">Vanilla JavaScript (ES6)</span>
+        <span class="tech-badge">HTML5 / CSS3</span>
+        <span class="tech-badge">WMI (Windows Management Instrumentation)</span>
+        <span class="tech-badge">Pynput</span>
+    </div>
+
+    <h3>2.1 El Servidor (Backend)</h3>
+    <p>Construido en Python (`backend_os.py`), actúa como un puente de bajo nivel interactuando con las APIs de Windows. Sus funciones primordiales son:</p>
+    <ul>
+        <li><strong>Detección Dinámica de Hardware (WMI):</strong> Accede a la interfaz WMI nativa de Microsoft (`Win32_AllocatedResource` y `MSFT_PhysicalDisk`) para descubrir los controladores, líneas IRQ, modelo de unidades físicas, y detectar correctamente el protocolo de bus usado por el almacenamiento (clasificando automáticamente NVMe vs SATA).</li>
+        <li><strong>Hooking Espacial de Entradas:</strong> Utiliza la librería <code>pynput</code> para interceptar eventos de teclado y ratón antes de que lleguen a la aplicación enfocada por el SO, permitiendo reportar su estado al momento preciso.</li>
+        <li><strong>Inyector de E/S Aislada:</strong> Implementa una función especializada para generar una carga real de 50MB que elude el caché del sistema de archivos mediante <code>os.fsync</code>, demostrando la interacción directa con el medio físico.</li>
+    </ul>
+
+    <h3>2.2 El Cliente (Frontend)</h3>
+    <p>Construido usando tecnologías web estándar (`index.html`, `app.js`, `styles.css`), presenta una interfaz inmersiva estilo "Glassmorphism" con un pipeline visual de datos. Renderiza múltiples flujos de log paralelos sin saturar el DOM y gestiona la latencia y la sincronización de mensajes para mantener el aspecto de consola.</p>
+
+    <h2>3. Características Clave y Demostración Teórica</h2>
+    
+    <h3>3.1 Visibilidad de IRQ y Controladores</h3>
+    <p>El sistema extrae dinámicamente qué "Línea de Petición de Interrupción" (IRQ) están utilizando los dispositivos críticos. Esto documenta cómo la arquitectura de la PC moderna maneja las señales asíncronas de los dispositivos hacia la CPU utilizando el controlador APIC.</p>
+
+    <h3>3.2 Cámara Avanzada de Captura de Disco (I/O)</h3>
+    <p>Se diseñó una funcionalidad avanzada que demuestra cómo ocurre una solicitud I/O moderna a nivel del Kernel NT. Una vez se selecciona el disco (NVMe o HDD) y se fuerza un I/O de 50MB, la aplicación inicia su seguimiento:</p>
+    
+    <ul>
+        <li><strong>User Space API:</strong> Evidenciando llamadas al subsistema nativo (`NtWriteFile` / `NtReadFile`).</li>
+        <li><strong>Creación de IRP:</strong> Demuestra cómo el I/O Manager del Kernel crea un Paquete de Petición de I/O (`IRP_MJ_WRITE`/`READ`) para enviarlo por la pila del controlador.</li>
+        <li><strong>Interacción HAL / DMA:</strong> Se visualiza la delegación de la transferencia mediante DMA (Direct Memory Access). En este paso, la CPU configura a los controladores (`stornvme.sys` o `storahci.sys`) para que muevan los datos a la memoria RAM de manera autónoma. La aplicación mide la tasa empírica de transferencia (MB/s).</li>
+        <li><strong>Completación de Interrupción:</strong> El emulador muestra el alzamiento de la IRQ y la posterior Rutina de Servicio de Interrupción (ISR) y DPC requeridas para notificar al subproceso de usuario que los datos han llegado.</li>
+    </ul>
+
+    <div class="highlight">
+        El gran valor didáctico reside en contrastar la latencia y velocidades logradas por el Controlador de un SSD NVMe conectado directamente al bus PCIe, frente un HDD tradicional atado al ecosistema SATA/IDE.
+    </div>
+
+    <h2>4. Conclusión</h2>
+    <p>El desarrollo de esta herramienta permite una interiorización tangible y visual de conceptos abstractos propios del diseño de los sistemas operativos. El proyecto demuestra que combinando Python para acceso al API del sistema base y tecnologías web modernas para la reactividad de la interfaz, se puede conseguir un entorno educativo versátil que no depende de compilaciones en espacio de kernel, y reduce las fricciones en el aprendizaje de Arquitectura de Computadoras.</p>
+
+</div>
+
+</body>
+</html>
